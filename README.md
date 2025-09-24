@@ -1,86 +1,79 @@
-# Proyecto: Libreria dinamica para reconocimiento y evaluacion de secuencias de ADN usando HMM - Analisis de algoritmos
+# Proyecto: Libreria dinamica con SWIG para reconocimiento de secuencias de ADN usando HMM - Analisis de algoritmos
+
+## Descripcion general
+
+Este proyecto implementa una libreria dinamica en C++, expuesta a Python mediante SWIG, para resolver problemas de reconocimiento y evaluacion de secuencias de ADN. El objetivo principal es comparar el desempeño de una implementacion optimizada en C++ frente a una implementacion base en Python, evidenciando las ventajas en rendimiento al usar librerias compiladas.
 
 
-## Descripcion
+## Procedimientos realizados
+
+### 1. Definicion del modelo oculto de Markov (HMM)
+
+* Se modelan dos estados ocultos:
+
+  * `H` = region codificante
+  * `L` = region no codificante
+* El alfabeto de simbolos corresponde a las bases nitrogenadas:
+
+  * `A = 0`, `C = 1`, `G = 2`, `T = 3`
+* Se definen:
+
+  * Probabilidades iniciales (`PI`)
+  * Matriz de transicion (`A`)
+  * Matriz de emision (`B`)
+
+Estas matrices se codifican de forma fija en la libreria, simulando un modelo de referencia.
 
 
-Este proyecto implementa una libreria dinamica en C++, integrada a Python mediante SWIG, para el analisis de secuencias de ADN utilizando Modelos Ocultos de Markov (HMM).
+### 2. Implementacion en C++
 
-El objetivo es resolver dos tareas principales:
+En los archivos `hmm.h` y `hmm.cpp` se implementaron dos funciones principales:
 
-Reconocimiento (Viterbi): identificar regiones con alta y baja probabilidad de ser codificantes dentro de una secuencia de ADN.
+* **`evaluar(secuencia)`**
+  Aplica el algoritmo Forward para calcular la probabilidad de que una secuencia haya sido generada por el modelo HMM.
+  Se utiliza aritmetica logarítmica para mayor estabilidad numerica.
 
-Evaluacion (Forward): calcular la probabilidad de que una secuencia haya sido generada a partir de un modelo HMM dado (Figura 2 del enunciado).
-
-Finalmente, se compara el desempeño en tiempo de ejecucion de la libreria dinamica frente a una implementacion equivalente en Python.
-
-
-## procedimiento
+* **`reconocer(secuencia)`**
+  Aplica el algoritmo de Viterbi, devolviendo la ruta de estados mas probable (codificante/no codificante) para cada posicion de la secuencia.
 
 
-**1. Implementacion en C++**
+### 3. Generacion de la interfaz con SWIG
 
-- Se definio una clase HMM que representa el modelo oculto de Markov.
+* Se define un archivo de interfaz `hmm.i` que expone las funciones de C++ a Python.
+* Se compila con SWIG y `g++` para generar:
 
-- El modelo esta parametrizado por:
+  * `hmm.py` (wrapper en Python)
+  * `_hmm.so` (librería compartida en C++).
 
-    - A: matriz de transicion entre estados ocultos.
+Esto permite importar el modulo con `import hmm` directamente en Python.
 
-    - B: matriz de emisiones (probabilidad de observar cada nucleotido en cada estado).
 
-    - π: distribucion inicial de estados.
+### 4. Uso en Python
 
-- Se implementaron dos algoritmos principales:
+Con la libreria compilada, se desarrollaron scripts en Python para:
 
-    - Algoritmo Forward: calcula la probabilidad de la secuencia observada bajo el modelo.
+* Evaluar secuencias cortas y largas.
+* Imprimir la ruta mas probable y la probabilidad calculada.
+* Visualizar graficamente:
 
-    - Algoritmo de Viterbi: encuentra la secuencia de estados mas probable que explica la observacion.
+  * Probabilidades de varias secuencias.
+  * Ruta de estados asignada a cada base.
 
-- Para evitar problemas numericos en secuencias largas, todos los calculos se realizan en espacio logaritmico (log-space).
 
-**2. Exposicion mediante SWIG**
+### 5. Comparacion de rendimiento
 
-- Se creo un archivo de interfaz hmm.i donde se declaran las clases y metodos exportados.
+Se realizaron experimentos de rendimiento para comparar:
 
-- Con el comando:
-```bash
-swig -c++ -python hmm.i
-```
-SWIG genera los archivos wrapper que permiten usar la libreria desde Python.
+* **Version Python (naïve)**: implementacion del algoritmo Forward con bucles anidados y listas.
+* **Version C++ (libreria dinamica)**: llamada a las funciones optimizadas via SWIG.
 
-- Se compilo el código C++ junto con el wrapper en una libreria dinamica compartida.
+Las pruebas se ejecutaron con diferentes longitudes de secuencia (`200`, `2,000`, `20,000`, `50,000`) y distintos numeros de estados ocultos (`2`, `5`, `10`).
 
-**3. Uso desde Python**
-
-- Desde Python se importa la libreria como un modulo (import _hmm).
-
-- Se construyen las secuencias de ADN como vectores de enteros (A=0, C=1, G=2, T=3).
-
-- Se pueden ejecutar:
-
-    - hmm.forward(sequence): devuelve la probabilidad logaritmica de la secuencia.
-    - hmm.viterbi(sequence): devuelve la ruta de estados mas probable.
-
-**4. Validación y pruebas**
-
-- Se probaron secuencias cortas, largas y generadas aleatoriamente.
-
-- Los resultados se analizaron y se graficaron rutas Viterbi para verificar el reconocimiento de regiones codificantes/no codificantes.
-
-**5. Comparacion de desempeño**
-
-- Se implemento en Python puro una version naive de los algoritmos Forward y Viterbi.
-
-- Se midio el tiempo de ejecucion en ambos enfoques para secuencias de distinta longitud.
-
-- Los resultados muestran que la libreria dinamica en C++ es varias veces mas rapida, especialmente en secuencias largas, confirmando la eficiencia del enfoque nativo frente a la interpretacion en Python.
+Los resultados muestran que la version en C++ logra un speedup de varios órdenes de magnitud frente a la version en Python, especialmente al aumentar el tamaño de las secuencias y la complejidad del modelo.
 
 
 ## Conclusiones
 
-
-- La libreria dinamica en C++ implementa correctamente los algoritmos de evaluacion (Forward) y reconocimiento (Viterbi).
-
-- La integracion con Python mediante SWIG permite aprovechar el rendimiento del codigo nativo manteniendo la facilidad de uso desde un lenguaje de alto nivel.
-
-- El benchmark confirma la ganancia de desempeño esperada: C++ es significativamente mas rapido que Python puro, lo que valida la utilidad de este tipo de integraciones en proyectos de bioinformatica y analisis de secuencias.
+* SWIG facilita la integracion entre C++ y Python, permitiendo reutilizar codigo optimizado en entornos de alto nivel.
+* Los algoritmos de Forward y Viterbi fueron implementados de manera eficiente en C++, logrando un rendimiento muy superior respecto a la versión Python.
+* La diferencia de tiempo justifica la creacion de la libreria dinamica, mostrando como un mismo problema se resuelve mucho más rapido con una implementacion compilada.
